@@ -1,0 +1,24 @@
+trigger: none
+  
+pool:
+  vmImage: 'windows-latest'
+
+steps:
+- task: BicepBuild@0
+  displayName: 'Bicep Build'
+  inputs:
+    process: 'single'  # multiple
+    sourceFile: '.\main.bicep'
+    stdout: false
+    outputFile: .\main.json
+
+- task: CopyFiles@2
+  inputs:
+    Contents: '*.json'
+    TargetFolder: '$(build.artifactStagingDirectory)'
+    
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'

@@ -1,0 +1,132 @@
+
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+- name: serviceConnection
+  value: 'BicepDevOps'
+- name: location
+  value: 'australiaeast'
+- name: templateFilePath
+  value: '$(Pipeline.Workspace)/drop/deployAzureSQLDatabase.bicep'
+- name: parametersFilePath
+  value: '$(Pipeline.Workspace)/drop/deployAzureSQLDatabaseParameters.json'  
+- group: Tags
+
+stages:
+- stage: BuildandPublish
+  jobs:
+  - job: Build
+    displayName: 'Build Artifacts'
+    steps:
+    - script: |
+        az bicep build --file 'deployAzureSQLDatabase.bicep'
+
+  - job: Publish
+    displayName: 'Publish Artifacts'
+    dependsOn: Build
+    steps:
+    - task: CopyFiles@2
+      displayName: 'Copy files'
+      inputs:
+        contents: '**'
+        targetFolder: '$(Build.ArtifactStagingDirectory)'
+
+    - publish: '$(Build.ArtifactStagingDirectory)'
+      displayName: 'Publish files'
+      artifact: drop
+
+- stage: Preview
+  jobs:
+  - job: Validate
+    displayName: 'Validate Bicep code'
+    variables: 
+      - group: Dev    
+    steps:
+    - download: current
+      artifact: drop
+
+    - task: AzureCLI@2
+      displayName: 'Run preflight validation'
+      inputs:
+        azureSubscription: ${{variables.serviceConnection}}
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az deployment group validate \
+          --name $(Build.DefinitionName)-$(Build.BuildNumber) \
+          --resource-group '$(resourceGroup)' \
+          --template-file ${{variables.templateFilePath}} \
+          --parameters @${{variables.parametersFilePath}} \
+          --parameters sqlActiveDirectoryAdminLogin='cdomingo' \
+          sqlActiveDirectoryAdminSID=$(sqlActiveDirectoryAdminSID) \
+          resourceLocation=$(location) \
+          sequence=$(sequence) \          
+          secretPass=$(secretPass) \
+          tags='{ "Environment": "$(Environment)", "Project": "$(Project)", "Business Unit": "$(BusinessUnit)" }' 
+
+- stage: Dev 
+  jobs:
+  - deployment: DeployDevInfra
+    displayName: 'Dev Infra'
+    environment: 'Development'
+    variables: 
+      - group: Dev          
+
+    strategy: 
+      runOnce:
+        deploy:       
+          steps:
+          - download: current
+            artifact: drop
+
+          - task: AzureCLI@2
+            displayName: Deploy Dev Bicep file 
+            inputs:
+              azureSubscription: ${{variables.serviceConnection}}
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az deployment group create \
+                --resource-group '$(resourceGroup)' \
+                --template-file ${{variables.templateFilePath}} \
+                --parameters @${{variables.parametersFilePath}} \
+                --parameters sqlActiveDirectoryAdminLogin='cdomingo' \
+                sqlActiveDirectoryAdminSID=$(sqlActiveDirectoryAdminSID) \
+                resourceLocation=$(location) \
+                tags='{ "Environment": "$(Environment)", "Project": "$(Project)", "Business Unit": "$(BusinessUnit)" }' \
+                --name $(Build.DefinitionName)-$(Build.BuildNumber)
+
+- stage: Test 
+  jobs:
+  - deployment: DeployTestInfra
+    displayName: 'Test Infra'
+    environment: 'Test'
+    variables: 
+      - group: Test           
+
+    strategy: 
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop 
+
+          - task: AzureCLI@2
+            displayName: Deploy Test Bicep file 
+            inputs:
+              azureSubscription: ${{variables.serviceConnection}}
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az deployment group create \
+                --resource-group '$(resourceGroup)' \
+                --template-file ${{variables.templateFilePath}} \
+                --parameters @${{variables.parametersFilePath}} \
+                --parameters sqlActiveDirectoryAdminLogin='cdomingo' \
+                sqlActiveDirectoryAdminSID=$(sqlActiveDirectoryAdminSID) \
+                resourceLocation=$(location) \
+                tags='{ "Environment": "$(Environment)", "Project": "$(Project)", "Business Unit": "$(BusinessUnit)" }' \
+                --name $(Build.DefinitionName)-$(Build.BuildNumber)                  

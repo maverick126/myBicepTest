@@ -1,0 +1,51 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "sqlActiveDirectoryAdminLogin": {
+        "value": ""
+      },
+      "sqlActiveDirectoryAdminSID": {
+        "value": ""
+      },
+      "secretPass": {
+        "value": ""
+      },
+      "sqlDatabaseName": {
+        "value": "chitodb"
+      },
+      "sqlAdminLogin": {
+        "value": "sqladmin"
+      },
+      "storageAccountType": {
+        "value": "Standard_LRS"
+      },
+      "storageAccountAccessTier": {
+          "value": "Hot"
+      },
+      "storageAccountDataLake": {
+          "value": true
+      },      
+      "resourceLocation": {
+        "value": "australiaeast"      
+      },
+      "keyVaultSku": {
+        "value": "standard"
+      },
+      "logAnalyticsSku": {
+        "value": "pergb2018"
+      },
+      "sequence": {
+        "value": "01"      
+      },      
+      "secretAccessPolicy": {
+        "value": ""
+      },
+      "tags": {
+        "value":  {
+            "Environment": "Dev",
+            "Project": "MyProject"
+        }
+      }  
+    }
+  }
